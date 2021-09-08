@@ -49,6 +49,10 @@ const mapMongooseTypeToSwaggerType = (type): 'string' | 'number' | 'boolean' | '
       return 'number';
     }
 
+    if (type.name === 'Buffer') {
+      return null;
+    }
+
     return type.name.toLowerCase();
   }
 
@@ -125,6 +129,9 @@ const mapSchemaTypeToFieldSchema = ({
     }
   }
 
+  if (value.ref) {
+    meta.description = `[${value.ref}](#/definitions/${value.ref})`;
+  }
   if (value === Date || value.type === Date) {
     meta.format = 'date-time';
   } else if (swaggerType === 'array') {
@@ -189,24 +196,22 @@ const getFieldsFromMongooseSchema = (schema: {
 
     // swagger object
     const field: Field = mapSchemaTypeToFieldSchema({ key, value, props });
-    const required: string[] = [];
 
     if (field.type === 'object') {
       const { field: propName } = field;
       const fieldProperties = field.properties || field.additionalProperties;
       for (const f of Object.values(fieldProperties) as any[]) {
         if (f.required && propName != null) {
-          required.push(propName);
           delete f.required;
         }
       }
     }
 
     if (field.type === 'array' && field.items.type === 'object') {
-      field.items.required = [];
       for (const key in field.items.properties) {
         const val = field.items.properties[key];
         if (val.required) {
+          field.items.required = field.items.required || [];
           field.items.required.push(key);
           delete val.required;
         }
